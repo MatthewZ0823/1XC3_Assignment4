@@ -1,0 +1,677 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Define Article %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass{article}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Using Packages %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{empheq}
+\usepackage{mdframed}
+\usepackage{booktabs}
+\usepackage{lipsum}
+\usepackage{graphicx}
+\usepackage{color}
+\usepackage{psfrag}
+\usepackage{pgfplots}
+\usepackage{bm}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Other Settings
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% Page Setting %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\geometry{a4paper}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% Define some useful colors %%%%%%%%%%%%%%%%%%%%%%%%%%
+\definecolor{ocre}{RGB}{243,102,25}
+\definecolor{mygray}{RGB}{243,243,244}
+\definecolor{deepGreen}{RGB}{26,111,0}
+\definecolor{shallowGreen}{RGB}{235,255,255}
+\definecolor{deepBlue}{RGB}{61,124,222}
+\definecolor{shallowBlue}{RGB}{235,249,255}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% Define an orangebox command %%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand\orangebox[1]{\fcolorbox{ocre}{mygray}{\hspace{1em}#1\hspace{1em}}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%% English Environments %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newtheoremstyle{mytheoremstyle}{3pt}{3pt}{\normalfont}{0cm}{\rmfamily\bfseries}{}{1em}{{\color{black}\thmname{#1}~\thmnumber{#2}}\thmnote{\,--\,#3}}
+\newtheoremstyle{myproblemstyle}{3pt}{3pt}{\normalfont}{0cm}{\rmfamily\bfseries}{}{1em}{{\color{black}\thmname{#1}~\thmnumber{#2}}\thmnote{\,--\,#3}}
+\theoremstyle{mytheoremstyle}
+\newmdtheoremenv[linewidth=1pt,backgroundcolor=shallowGreen,linecolor=deepGreen,leftmargin=0pt,innerleftmargin=20pt,innerrightmargin=20pt,]{theorem}{Theorem}[section]
+\theoremstyle{mytheoremstyle}
+\newmdtheoremenv[linewidth=1pt,backgroundcolor=shallowBlue,linecolor=deepBlue,leftmargin=0pt,innerleftmargin=20pt,innerrightmargin=20pt,]{definition}{Definition}[section]
+\theoremstyle{myproblemstyle}
+\newmdtheoremenv[linecolor=black,leftmargin=0pt,innerleftmargin=10pt,innerrightmargin=10pt,]{problem}{Problem}[section]
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Plotting Settings %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepgfplotslibrary{colorbrewer}
+\pgfplotsset{width=8cm,compat=1.9}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% Code Box / Inline Settings %%%%%%%%%%%%%%%%%%%%%%%%%
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{cherry}{RGB}{148,0,25}
+\lstset{
+  language=C,
+  basicstyle=\ttfamily ,
+  backgroundcolor=\color{blue!5},
+  keywordstyle=\color{blue},
+  commentstyle=\color{codegreen},
+  stringstyle=\color{red},
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{lightgray!35},
+  alsoletter={\#},
+  otherkeywords={\#},
+}
+\newtcbox{\codebox}[1][gray]{verbatim, on line, boxrule=0.2pt, colback=blue!5, colframe=#1, fontupper=\color{cherry}\ttfamily, arc=2pt, boxsep=0pt, left=2pt, right=2pt, top=3pt, bottom=2pt}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Title & Author %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\title{Sentiment Analysis - Report \\ \vspace{0.2cm} \large 1XC3 Assignment \#4}
+\author{Matthew Zhou}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+    \maketitle
+
+    \tableofcontents
+
+    \section{Overview}
+
+    The program preforms a rule-based sentiment analysis using the vader lexicon. It first parses the vader lexicon to find the scores of each token, then it finds and prints the average score of each line in a \codebox{txt} file using the lexicon.
+
+    \subsection{Compiling}
+    To compile the code, simply run the \codebox{make} command in the \codebox{src} directory. The object files and compiled program will be in a build directory. The compiled program will be named \codebox{mySA}. To clean the products of the build, run the \codebox{make clean} command in the \codebox{src} directory.
+
+    \subsection{Running}
+    When compiled the program takes two arguments \codebox{<lexicon-file>} and \codebox{<validation-file>}. The \codebox{<lexicon-file>} argument is the path to the vader lexicon. The \codebox{<validation-file>} argument is the path to a \codebox{.txt} file containing the strings to be analysed by the program.
+
+    \section{Code Explanation}
+
+    The code is split into two files. \codebox{parse\_vader} contains functions to parse the \codebox{<lexicon-file>} and save all the words in a structure.
+
+    \begin{lstlisting}
+struct Words {
+  char *word;
+  float score;          // Polarity Score
+  float SD;             // Standard Deviation
+  int SIS_array[10];    // Sentiment Intensity Scores
+};
+    \end{lstlisting}
+
+    \codebox{main} reads the content in \codebox{<validation-file>}, and uses the functions in the \codebox{parse\_vader} to assign a score to each line in the \codebox{<validation-file>}.
+
+    \subsection{\codebox{parse\_vader}}
+
+    The \codebox{parse\_vader.h} file exposes the following functions:
+
+\begin{lstlisting}
+// Frees a list of Words from memory
+void freeWords(struct Words *words, int numWords);
+
+// Reads a list of words from `file` and puts copies the result into `wordsPtr`
+// and `numWordsPtr`. Caller is responsible for freeing `*wordsPtr`
+// Returns EXIT_SUCCESS upon success and EXIT_FAILURE upon failure
+int readWordsFromFile(FILE *file, struct Words **wordsPtr, int *numWordsPtr);
+
+// Returns a pointer to a Words in a list `words` that matches `word`
+// Returns NULL if not found
+struct Words *findWord(struct Words *words, int numWords, char *word);
+\end{lstlisting}
+
+    \subsubsection{\codebox{freeWords}}
+    The \codebox{freeWords} function frees a dynamically allocated array of words.
+
+    \begin{lstlisting}
+void freeWords(struct Words *words, int numWords) {
+  for (int i = 0; i < numWords; i++) {
+    free(words[i].word);
+  }
+  free(words);
+}
+    \end{lstlisting}
+
+    The function first iterates through each \codebox{Words} in the list of words, to free the \codebox{word} element. We do this because we use dynamic memory allocation to save the \codebox{word} element. We then free the list of words itself.
+
+    \subsubsection{\codebox{readWordsFromFile}}
+
+    The \codebox{readWordsFromFile} function parses a file with the same format as the \codebox{vader\_lexicon.txt} file into a list of \codebox{Words}. The function updates the values referenced by \codebox{wordsPtr} and \\\codebox{numWordsPtr} to provide the list of words and the total number of words to the caller.
+
+    \begin{lstlisting}
+int readWordsFromFile(FILE *file, struct Words **wordsPtr, int *numWordsPtr) {
+  // Allocate an array to store all the words
+  struct Words *words = malloc(sizeof(struct Words));
+  // Check the return value
+  if (words == NULL) {
+    fprintf(stderr, "Unable to allocate memory\n");
+    return EXIT_FAILURE;
+  }
+
+  // Keep track of the number of words read
+  int numWords = 0;
+
+  int ret;
+  // Keep parsing each line until there's an error
+  do {
+    struct Words word;
+    ret = parseLine(file, &word);
+
+    if (ret == EXIT_SUCCESS) {
+      numWords++;
+      words = realloc(words, sizeof(struct Words) * numWords);
+
+      if (words == NULL) {
+        fprintf(stderr, "Unable to allocate memory\n");
+        return EXIT_FAILURE;
+      }
+
+      words[numWords - 1] = word;
+    }
+  } while (ret == EXIT_SUCCESS);
+
+  // Hand the words and numWords to the caller
+  *wordsPtr = words;
+  *numWordsPtr = numWords;
+
+  return EXIT_SUCCESS;
+}
+    \end{lstlisting}
+
+    The function first allocates enough memory on the heap for one \codebox{Words}. If the function is unable to allocate the memory, it returns \codebox{EXIT\_FAILURE}. It also initializes a count of the number of words read from the file (\codebox{numWords}).
+
+    It then tries to parse each line in the file, until there's an error. \codebox{parseLine} is a custom function that reads a line from \codebox{file} and parses it into the \codebox{word} struct. The function checks its return value to see if it is successful. If we are able to parse the line, we first increment the number of words counter. Then the function \codebox{realloc}s enough space for the new words list and appends the new word to the end of the list.
+    
+    When the function is unable to parse a line from the file, we assume that we have hit the end of the file. We then hand the list of words and number of words back to the caller by mutating the value pointed at by \codebox{wordsPtr} and \codebox{numWordsPtr}.
+
+    \subsubsection{\codebox{parseLine}}
+
+    The \codebox{parseLine} function does the string parsing required to fill out the \codebox{Words} struct. It works as described in the above section.
+
+    \begin{lstlisting}
+// Parses a line from `file` into a Words. Puts the output in `wordPtr`
+// Returns EXIT_SUCESS upon success and EXIT_FAILURE on failure
+int parseLine(FILE *file, struct Words *wordPtr) {
+  // Read a line from file into buff
+  char buff[LINE_SIZE];
+  char *ret = fgets(buff, LINE_SIZE, file);
+
+  if (ret == NULL) { // Check the return value
+    return EXIT_FAILURE;
+  }
+
+  // Tokenize buff by \t
+
+  // Read the word
+  char *token = strtok(buff, "\t");
+  if (token == NULL) {
+    return EXIT_FAILURE;
+  }
+
+  char *word = malloc(strlen(buff) + 1);
+  // Check the return value
+  if (word == NULL) {
+    fprintf(stderr, "Unable to allocate memory\n");
+    return EXIT_FAILURE;
+  }
+  wordPtr->word = word;
+  strcpy(wordPtr->word, token);
+
+  // Read the score
+  token = strtok(NULL, "\t");
+  if (token == NULL) {
+    return EXIT_FAILURE;
+  }
+
+  wordPtr->score = strtof(token, NULL);
+
+  // Read the SD
+  token = strtok(NULL, "\t");
+  if (token == NULL) {
+    return EXIT_FAILURE;
+  }
+
+  wordPtr->SD = strtof(token, NULL);
+
+  // Read the SIS_array
+  token = strtok(NULL, "\t");
+  if (token == NULL) {
+    return EXIT_FAILURE;
+  }
+
+
+  int scanRet = sscanf(token, "[%d, %d, %d, %d, %d, %d, %d, %d, %d, %d]", wordPtr->SIS_array, (wordPtr->SIS_array) + 1, (wordPtr->SIS_array) + 2, (wordPtr->SIS_array) + 3, (wordPtr->SIS_array) + 4, (wordPtr->SIS_array) + 5, (wordPtr->SIS_array) + 6, (wordPtr->SIS_array) + 7, (wordPtr->SIS_array) + 8, (wordPtr->SIS_array) + 9);
+
+  if (scanRet != 10) {
+    return EXIT_FAILURE;
+  }
+
+  return EXIT_SUCCESS;
+}
+    \end{lstlisting}
+
+    It first initializes a buffer on the stack to read the a line from the file. The buffer has max length of \codebox{LINE\_SIZE}, which is defined in the \codebox{parse\_vader.h} file to be 255. The function then reads a line from \codebox{file} into \codebox{buff}. If it is unsuccessful, it returns \codebox{EXIT\_FAILURE}.
+
+    It then tokenizes the \codebox{buff} string by the tab character, since each section of the \\vader\_lexicon is separated by a tab character. The function then parses each token in order to try and fill the \codebox{Words} struct. 
+
+    To fill out the \codebox{word} element, it allocates enough memory for the word with the null character, and copies the token into the word element. If the function is unable to allocate enough memory, it returns \codebox{EXIT\_FAILURE}.
+
+    To fill out the \codebox{score} and \codebox{SD} elements, it converts each token to a float, and writes the value into the structure.
+
+    To fill out the \codebox{SIS\_array} element, the function uses \codebox{sscanf} to read each of the numbers in the formated token. It the checks the return value to see if the correct number of values were read.
+
+    \subsubsection{\codebox{findWord}}
+
+    The function looks in a list of \codebox{Words}s to find the \codebox{Words} with word element equal to \codebox{word}.
+
+    \begin{lstlisting}
+struct Words *findWord(struct Words *words, int numWords, char *word) {
+  for (int i = 0; i < numWords; i++) {
+    if (strncmp(words[i].word, word, LINE_SIZE) == 0) {
+      return words + i;
+    }
+  }
+
+  return NULL;
+}
+    \end{lstlisting}
+
+    It iterates through each word in the list, then stops and returns when it finds the right word. If it is unable to find the right word it returns \codebox{NULL}.
+
+    \subsection{\codebox{main}}
+
+    \begin{lstlisting}
+#include "parse_vader.h"
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Converts a null terminated string to lowercase
+void strToLower(char *str) {
+  for (int i = 0; str[i] != '\0'; i++) {
+    if (isupper(str[i])) {
+      str[i] = tolower(str[i]);
+    }
+  }
+}
+
+int main(int argc, char *argv[]) {
+  // Check the number of arguments
+  if (argc != 3) {
+    printf("Usage ./mySA <lexicon_file> <validation_file> \n");
+  }
+
+  // Read the vader lexicon file
+  FILE *vaderLexiconFile = fopen(argv[1], "r");
+  if (vaderLexiconFile == NULL) {
+    printf("Unable to open file\n");
+    return EXIT_FAILURE;
+  }
+
+  // Read the files from the word
+  int numWords = 0;
+  struct Words *words;
+
+  int ret = readWordsFromFile(vaderLexiconFile, &words, &numWords);
+  if (ret == EXIT_FAILURE) {
+    return EXIT_FAILURE;
+  }
+
+  // Read the file of stuff to analyze
+  FILE *validationFile = fopen(argv[2], "r");
+  if (validationFile == NULL) {
+    printf("Unable to open file\n");
+    return EXIT_FAILURE;
+  }
+
+  printf("%-100s %s\n", "string sample", "score");
+  for (int i = 0; i < 120; i++) {
+    printf("-");
+  }
+  printf("\n");
+
+  // Read each line into a buffer
+  char buff[255];
+  while (fgets(buff, 255, validationFile) != NULL) {
+    // Remove the trailing newline
+    buff[strcspn(buff, "\n\r")] = 0;
+    printf("%-100s", buff);
+
+    float scoreSum = 0;
+    int numTokens = 0;
+
+    // Split the string by spaces and some punctuation
+    // Note that this doesn't work in cases where "words"
+    // have punctuation in it
+    char *token = strtok(buff, " \r\n,.!");
+    while (token != NULL) {
+      numTokens++;
+
+      // Find the word and add its score to the sum
+      strToLower(token);
+      struct Words *word = findWord(words, numWords, token);
+      if (word != NULL) {
+        scoreSum += word->score;
+      }
+
+      // Get the next token
+      token = strtok(NULL, " \r\n,.!");
+    }
+
+    // Print the average score
+    printf("%.5f\n", scoreSum / numTokens);
+  }
+
+  freeWords(words, numWords);
+  fclose(vaderLexiconFile);
+  fclose(validationFile);
+
+  return EXIT_SUCCESS;
+}
+    \end{lstlisting}
+
+    The \codebox{strToLower} function converts all uppercase characters in a string to lowercase. It iterates through the \codebox{str} until it encounters the null character. If the character at the current index is uppercase it converts it to lower.
+
+    The main funciton first checks the number of arguments. It then reads the file given by the first argument, and calls the \codebox{readWordsFromFile} function to get all the \codebox{Words}s. It puts the output into the variable \codebox{words}. If it is unable to open the file, it exits the program. The program then reads the file given by the second argument. If it is unable to open the file, it exits the program.
+
+    The program reads each line in the \codebox{validationFile} into \codebox{buff}. It then removes the traliing new line character and prints it out. It then tokenizes \codebox{buff} by spaces and punctuation, and searches the \codebox{words} list for the score of each token. After doing this for each token, it computes the average and prints it to the user.
+
+    At the very end of the program, we free all the memory used and close the files.
+
+    \section{Appendix}
+    
+    \begin{lstlisting}
+// main.c
+// Make clangd shut up
+#define _CRT_SECURE_NO_WARNINGS
+
+#include "parse_vader.h"
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Converts a null terminated string to lowercase
+void strToLower(char *str) {
+  for (int i = 0; str[i] != '\0'; i++) {
+    if (isupper(str[i])) {
+      str[i] = tolower(str[i]);
+    }
+  }
+}
+
+int main(int argc, char *argv[]) {
+  // Check the number of arguments
+  if (argc != 3) {
+    printf("Usage ./mySA <lexicon_file> <validation_file> \n");
+  }
+
+  // Read the vader lexicon file
+  FILE *vaderLexiconFile = fopen(argv[1], "r");
+  if (vaderLexiconFile == NULL) {
+    printf("Unable to open file\n");
+    return EXIT_FAILURE;
+  }
+
+  // Read the files from the word
+  int numWords = 0;
+  struct Words *words;
+
+  int ret = readWordsFromFile(vaderLexiconFile, &words, &numWords);
+  if (ret == EXIT_FAILURE) {
+    return EXIT_FAILURE;
+  }
+
+  // Read the file of stuff to analyze
+  FILE *validationFile = fopen(argv[2], "r");
+  if (validationFile == NULL) {
+    printf("Unable to open file\n");
+    return EXIT_FAILURE;
+  }
+
+  printf("%-100s %s\n", "string sample", "score");
+  for (int i = 0; i < 120; i++) {
+    printf("-");
+  }
+  printf("\n");
+
+  // Read each line into a buffer
+  char buff[255];
+  while (fgets(buff, 255, validationFile) != NULL) {
+    // Remove the trailing newline
+    buff[strcspn(buff, "\n\r")] = 0;
+    printf("%-100s", buff);
+
+    float scoreSum = 0;
+    int numTokens = 0;
+
+    // Split the string by spaces and some punctuation
+    // Note that this doesn't work in cases where "words"
+    // have punctuation in it
+    char *token = strtok(buff, " \r\n,.!");
+    while (token != NULL) {
+      numTokens++;
+
+      // Find the word and add its score to the sum
+      strToLower(token);
+      struct Words *word = findWord(words, numWords, token);
+      if (word != NULL) {
+        scoreSum += word->score;
+      }
+
+      // Get the next token
+      token = strtok(NULL, " \r\n,.!");
+    }
+
+    // Print the average score
+    printf("%.5f\n", scoreSum / numTokens);
+  }
+
+  freeWords(words, numWords);
+  fclose(vaderLexiconFile);
+  fclose(validationFile);
+
+  return EXIT_SUCCESS;
+}
+    \end{lstlisting}
+
+    \begin{lstlisting}
+// parse_vader.c
+// Make clangd shut up
+#define _CRT_SECURE_NO_WARNINGS
+
+#include "parse_vader.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Parses a line from `file` into a Words. Puts the output in `wordPtr`
+// Returns EXIT_SUCESS upon success and EXIT_FAILURE on failure
+int parseLine(FILE *file, struct Words *wordPtr) {
+  // Read a line from file into buff
+  char buff[LINE_SIZE];
+  char *ret = fgets(buff, LINE_SIZE, file);
+
+  if (ret == NULL) { // Check the return value
+    return EXIT_FAILURE;
+  }
+
+  // Tokenize buff by \t
+
+  // Read the word
+  char *token = strtok(buff, "\t");
+  if (token == NULL) {
+    return EXIT_FAILURE;
+  }
+
+  char *word = malloc(strlen(buff) + 1);
+  // Check the return value
+  if (word == NULL) {
+    fprintf(stderr, "Unable to allocate memory\n");
+    return EXIT_FAILURE;
+  }
+  wordPtr->word = word;
+  strcpy(wordPtr->word, token);
+
+  // Read the score
+  token = strtok(NULL, "\t");
+  if (token == NULL) {
+    return EXIT_FAILURE;
+  }
+
+  wordPtr->score = strtof(token, NULL);
+
+  // Read the SD
+  token = strtok(NULL, "\t");
+  if (token == NULL) {
+    return EXIT_FAILURE;
+  }
+
+  wordPtr->SD = strtof(token, NULL);
+
+  // Read the SIS_array
+  token = strtok(NULL, "\t");
+  if (token == NULL) {
+    return EXIT_FAILURE;
+  }
+
+  int scanRet = sscanf(token, "[%d, %d, %d, %d, %d, %d, %d, %d, %d, %d]",
+                       wordPtr->SIS_array, (wordPtr->SIS_array) + 1,
+                       (wordPtr->SIS_array) + 2, (wordPtr->SIS_array) + 3,
+                       (wordPtr->SIS_array) + 4, (wordPtr->SIS_array) + 5,
+                       (wordPtr->SIS_array) + 6, (wordPtr->SIS_array) + 7,
+                       (wordPtr->SIS_array) + 8, (wordPtr->SIS_array) + 9);
+
+  if (scanRet != 10) {
+    return EXIT_FAILURE;
+  }
+
+  return EXIT_SUCCESS;
+}
+
+void freeWords(struct Words *words, int numWords) {
+  for (int i = 0; i < numWords; i++) {
+    free(words[i].word);
+  }
+  free(words);
+}
+
+int readWordsFromFile(FILE *file, struct Words **wordsPtr, int *numWordsPtr) {
+  // Allocate an array to store all the words
+  struct Words *words = malloc(sizeof(struct Words));
+  // Check the return value
+  if (words == NULL) {
+    fprintf(stderr, "Unable to allocate memory\n");
+    return EXIT_FAILURE;
+  }
+
+  // Keep track of the number of words read
+  int numWords = 0;
+
+  int ret;
+  // Keep parsing each line until there's an error
+  do {
+    struct Words word;
+    ret = parseLine(file, &word);
+
+    if (ret == EXIT_SUCCESS) {
+      numWords++;
+      words = realloc(words, sizeof(struct Words) * numWords);
+
+      if (words == NULL) {
+        fprintf(stderr, "Unable to allocate memory\n");
+        return EXIT_FAILURE;
+      }
+
+      words[numWords - 1] = word;
+    }
+  } while (ret == EXIT_SUCCESS);
+
+  // Hand the words and numWords to the caller
+  *wordsPtr = words;
+  *numWordsPtr = numWords;
+
+  return EXIT_SUCCESS;
+}
+
+struct Words *findWord(struct Words *words, int numWords, char *word) {
+  for (int i = 0; i < numWords; i++) {
+    if (strncmp(words[i].word, word, LINE_SIZE) == 0) {
+      return words + i;
+    }
+  }
+
+  return NULL;
+}
+    \end{lstlisting}
+
+    \begin{lstlisting}
+// parse_vader.h
+#include <stdio.h>
+
+#ifndef PARSE_VADER_H
+#define PARSE_VADER_H
+
+#define LINE_SIZE 255
+#define SIS_ARRAY_SIZE 10
+
+// Struct containing a word with its assosicated score and others
+struct Words {
+  char *word;
+  float score;
+  float SD;
+  int SIS_array[SIS_ARRAY_SIZE];
+};
+
+// Frees a list of Words from memory
+void freeWords(struct Words *words, int numWords);
+
+// Reads a list of words from `file` and puts copies the result into `wordsPtr`
+// and `numWordsPtr`. Caller is responsible for freeing `*wordsPtr`
+// Returns EXIT_SUCCESS upon success and EXIT_FAILURE upon failure
+int readWordsFromFile(FILE *file, struct Words **wordsPtr, int *numWordsPtr);
+
+// Returns a pointer to a Words in a list `words` that matches `word`
+// Returns NULL if not found
+struct Words *findWord(struct Words *words, int numWords, char *word);
+
+#endif
+    \end{lstlisting}
+
+    \begin{lstlisting}
+# Makefile
+CC = gcc
+CFLAGS = -Wall -Wextra -g
+BUILD_DIR = build
+TARGET = mySA
+
+all: $(BUILD_DIR)/$(TARGET)
+
+$(BUILD_DIR)/$(TARGET): $(BUILD_DIR)/main.o $(BUILD_DIR)/parse_vader.o | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -o $(BUILD_DIR)/$(TARGET) $(BUILD_DIR)/parse_vader.o $(BUILD_DIR)/main.o
+
+$(BUILD_DIR)/main.o: main.c parse_vader.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -o $@ -c main.c
+
+$(BUILD_DIR)/parse_vader.o: parse_vader.c parse_vader.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -o $@ -c parse_vader.c
+
+$(BUILD_DIR):
+	mkdir $@
+
+bruh:
+	echo "bruh"
+
+clean: 
+	rm -r $(BUILD_DIR)
+    \end{lstlisting}
+\end{document}
